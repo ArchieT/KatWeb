@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"github.com/yhat/wsutil"
 	"io/ioutil"
-	"math"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/kittyhacker101/KatWeb/logs"
 )
 
 // UpdateData contains a struct for parsing returned json from the request
@@ -157,42 +157,41 @@ func ProxyRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 // CheckUpdate checks if you are using the latest version of KatWeb
-func CheckUpdate(current string) string {
+func CheckUpdate(current string) logs.Entry {
 	resp, err := updateClient.Get("https://api.github.com/repos/kittyhacker101/KatWeb/releases/latest")
 	if err != nil {
-		return "[Warn] : Unable to contact GitHub API!\n"
+		return logs.Entry{
+			&logs.FailedToContactGithubAPIforUpdate{Resp: resp, Err: err}}
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "[Warn] : Unable to read request body!\n"
+		return logs.Entry{
+			&logs.FailedToReadGithubAPIUpdatesResponseBody{Err: err}}
 	}
-	if json.Unmarshal(body, &upd) != nil {
-		return "[Warn] : Unable to parse GitHub API response!\n"
+	if err := json.Unmarshal(body, &upd); err != nil {
+		return logs.Entry{
+			&logs.FailedToParseGithubAPIUpdatesResponse{Err: err}}
 	}
 	if upd.Latest == "" {
-		return "[Warn] : GitHub API response is empty!\n"
+		return logs.Entry{
+			(*logs.EmptyGithubAPIUpdatesResponse)(nil)}
 	}
 
 	currenti, err := strconv.ParseFloat(current[3:], 32)
 	if err != nil {
-		return "[Warn] : Unable to parse version number!\n"
+		return logs.Entry{&logs.UnableToParseVersionNumber{
+			CurrentOrUpdates: logs.Current, What: current, Err: err}}
 	}
 	latesti, err := strconv.ParseFloat(upd.Latest[3:], 32)
 	if err != nil {
-		return "[Warn] : Unable to parse latest version number!\n"
+		return logs.Entry{&logs.UnableToParseVersionNumber{
+			CurrentOrUpdates: logs.Latest, What: upd.Latest, Err: err}}
 	}
 
-	if math.Ceil(currenti) < math.Ceil(latesti) {
-		return "[Warn] : KatWeb is very out of date (" + upd.Latest[1:] + " > " + current[1:] + "). Please update to the latest version as soon as possible.\n"
-	}
-	if currenti < latesti {
-		return "[Info] : KatWeb is out of date (" + upd.Latest[1:] + " > " + current[1:] + "). Using the latest version is recommended.\n"
-	}
-	if currenti > latesti {
-		return "[Info] : Running a development version of KatWeb is not recommended.\n"
-	}
-
-	return ""
+	return logs.Entry{&logs.CurrentAndLatest{
+		Current: float32(currenti),
+		Latest:  float32(latesti),
+	}}
 }

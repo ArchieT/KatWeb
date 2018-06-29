@@ -95,7 +95,7 @@ func main() {
 	}
 
 	if !*noup {
-		go fmt.Print(CheckUpdate(currentVersion))
+		go fmt.Println(CheckUpdate(currentVersion))
 	}
 
 	if errt := ParseConfig("conf.json"); errt != "" {

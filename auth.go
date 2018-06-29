@@ -27,6 +27,8 @@ func RunAuth(w http.ResponseWriter, r *http.Request, a []string) bool {
 }
 
 // DetectPasswd gets password protection settings, and authentication credentials.
+// i.e. gets passwd file from the dir and returns its lines or if blank ["forbid"] or else ["err"]
+// So yeah, that error can be simulated by making a passwd file containing just "err"
 func DetectPasswd(url string, path string) []string {
 	tmp, _ := filepath.Split(url)
 
